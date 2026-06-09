@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "active-sonar"
+version = "0.1.0"
+description = "Map and visualize computer networks using active scanning with Scapy"
+requires-python = ">=3.10"
+dependencies = [
+  "scapy>=2.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
