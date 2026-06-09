@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
+
+_INVALID_IP_SORT_KEY = tuple([256] * 16)
 
 
 @dataclass(frozen=True)
@@ -40,7 +43,7 @@ def discover_hosts(
             hosts.append(Host(ip=ip, mac=mac))
 
     unique_hosts = {(host.ip, host.mac): host for host in hosts}
-    return sorted(unique_hosts.values(), key=lambda host: tuple(int(x) for x in host.ip.split(".")))
+    return sorted(unique_hosts.values(), key=lambda host: _sort_key_for_ip(host.ip))
 
 
 def build_topology(hosts: Iterable[Host], center_label: str = "network") -> dict:
@@ -55,6 +58,14 @@ def build_topology(hosts: Iterable[Host], center_label: str = "network") -> dict
         edges.append({"source": center_label, "target": node_id})
 
     return {"nodes": nodes, "edges": edges}
+
+
+def _sort_key_for_ip(ip: str) -> tuple[int, ...]:
+    try:
+        parsed = ipaddress.ip_address(ip)
+        return tuple(parsed.packed)
+    except ValueError:
+        return _INVALID_IP_SORT_KEY
 
 
 def write_topology_html(topology: dict, output_path: str | Path) -> None:

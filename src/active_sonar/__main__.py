@@ -18,16 +18,22 @@ def main() -> int:
     try:
         hosts = discover_hosts(args.cidr)
     except RuntimeError as exc:
-        parser.exit(2, f"error: {exc}\n")
+        parser.exit(2, f"error: Failed to scan network: {exc}\n")
 
     topology = build_topology(hosts)
 
     if args.json_output:
-        with open(args.json_output, "w", encoding="utf-8") as f:
-            json.dump(topology, f, indent=2)
+        try:
+            with open(args.json_output, "w", encoding="utf-8") as f:
+                json.dump(topology, f, indent=2)
+        except OSError as exc:
+            parser.exit(2, f"error: Failed to write JSON output: {exc}\n")
 
     if args.html_output:
-        write_topology_html(topology, args.html_output)
+        try:
+            write_topology_html(topology, args.html_output)
+        except OSError as exc:
+            parser.exit(2, f"error: Failed to write HTML output: {exc}\n")
 
     if not args.json_output and not args.html_output:
         print(json.dumps(topology, indent=2))
