@@ -1,10 +1,20 @@
-# active-sonar
 
-An active network sonar engine. Uses Scapy to emit custom packet sweeps and renders live local subnet topologies through a force-directed D3.js graph.
+Charting cyberspace, one ping at a time.
 
-A learning project in network cartography: start by mapping my own home LAN, then extend to remote networks I own.
+# Active-Sonar
 
-> ⚠️ Scan only networks you own or have permission to scan.
+**active-sonar** is a network reconnaissance and visualization engine for learning how
+networks are actually shaped. Like its namesake, it emits a sweep of packets, listens for
+the echoes, and turns those returns into a map of the terrain around you.
+
+This is a learning project with a deliberate trajectory:
+
+1. **Map my own home network** — understand every device on my LAN. *(current focus)*
+2. **Map remote networks I own** — extend the same techniques to VPNs and remote subnets I set up.
+3. **Map cyberspace** — treat the network as territory worth surveying, and build the tooling to do it well.
+
+⚠️ **Scan only networks you own or have explicit permission to scan.** Active scanning sends real packets to real hosts. Point this at your own LAN or lab — never at networks you don't control.
+
 
 ## How it works
 
