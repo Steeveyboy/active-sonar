@@ -27,7 +27,7 @@ Requires Python 3.10+ on Linux/macOS/WSL.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install scapy
+pip install -r requirements.txt
 ```
 
 ## Running

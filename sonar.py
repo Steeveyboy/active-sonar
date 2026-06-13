@@ -1,7 +1,8 @@
-from scapy.all import ARP, Ether, srp
+from scapy.all import ARP, Ether, srp1
+from ipaddress import ip_network
+from tqdm import tqdm
 import json
 import socket
-
 import argparse
 
 def get_args():
@@ -24,28 +25,22 @@ def get_local_ip():
 
 
 def scan_subnet(ip_range):
-    print(f"Scanning {ip_range}...")
-
-    # Craft the Packet
-    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-    arp = ARP(pdst=ip_range)
-    packet = ether/arp
-    
-    # Send the Packet and Capture the Response
-    result, _ = srp(packet, timeout=3, verbose=0)
-
+    hosts = list(ip_network(ip_range, strict=False).hosts())
     scanner_ip = get_local_ip()
-    
+
     nodes = [{"id": scanner_ip, "label": "Scanner", "group": "scanner"}]
     links = []
-    
-    for sent, received in result:
-        print(f"IP: {received.psrc}, MAC: {received.hwsrc}")
-        target_ip = received.psrc
-        target_mac = received.hwsrc
-        
-        nodes.append({"id": target_ip, "label": target_ip, "group": "target"})
-        links.append({"source": scanner_ip, "target": target_ip})
+
+    with tqdm(hosts, desc=f"Scanning {ip_range}", unit="host") as progress:
+        for host in progress:
+            ip = str(host)
+            packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
+            received = srp1(packet, timeout=1, verbose=0)
+
+            if received:
+                tqdm.write(f"  Found — IP: {received.psrc}  MAC: {received.hwsrc}")
+                nodes.append({"id": received.psrc, "label": received.psrc, "group": "target"})
+                links.append({"source": scanner_ip, "target": received.psrc})
         
     # Output the results in JSON format
     output = {
