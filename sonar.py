@@ -24,6 +24,12 @@ def get_local_ip():
     return SOCK_IP
 
 
+def get_local_subnet():
+    """Derive the /24 subnet of the machine running the script (e.g. '172.28.15.0/24')."""
+    ip = get_local_ip()
+    return str(ip_network(f"{ip}/24", strict=False))
+
+
 def scan_subnet(ip_range):
     hosts = list(ip_network(ip_range, strict=False).hosts())
     scanner_ip = get_local_ip()
@@ -57,7 +63,7 @@ if __name__ == "__main__":
     if args.subnet:
         target_subnet = args.subnet
     else:
-        target_subnet = "172.28.0.0/24"
+        target_subnet = get_local_subnet()
         print(f"Using Default Subnet IP Range: {target_subnet}")
     
     
