@@ -45,6 +45,18 @@ sudo .venv/bin/python sonar.py                            # default subnet
 
 Find your subnet with `ip addr` (Linux) or `ifconfig` (macOS). Results print to the terminal and are written to `network_topology.json`.
 
+## Visualization
+
+A standalone graph view is included in `network_graph.html`. It tries to load `network_topology.json` first and falls back to `synthetic_network_topology.json`, which contains a richer synthetic `192.168.1.0/24` sample subnet for local visualization work.
+
+Serve the repository directory locally, then open the graph in your browser:
+
+```bash
+python3 -m http.server
+```
+
+Then visit `http://localhost:8000/network_graph.html`.
+
 ## Roadmap
 
 **🗺️ Visualization frontend** — turn the JSON into a living map
