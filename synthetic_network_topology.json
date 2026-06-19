@@ -1,0 +1,167 @@
+{
+    "nodes": [
+        {
+            "id": "192.168.1.1",
+            "label": "Gateway",
+            "group": "infrastructure",
+            "device_type": "router",
+            "role": "edge-router"
+        },
+        {
+            "id": "192.168.1.2",
+            "label": "Core Switch",
+            "group": "infrastructure",
+            "device_type": "switch",
+            "role": "distribution"
+        },
+        {
+            "id": "192.168.1.3",
+            "label": "Wi-Fi AP",
+            "group": "infrastructure",
+            "device_type": "access-point",
+            "role": "wireless"
+        },
+        {
+            "id": "192.168.1.10",
+            "label": "Scanner",
+            "group": "scanner",
+            "device_type": "workstation",
+            "role": "observer"
+        },
+        {
+            "id": "192.168.1.12",
+            "label": "NAS",
+            "group": "infrastructure",
+            "device_type": "nas",
+            "role": "storage"
+        },
+        {
+            "id": "192.168.1.18",
+            "label": "Office Desktop",
+            "group": "workstation",
+            "device_type": "desktop",
+            "role": "user-device"
+        },
+        {
+            "id": "192.168.1.21",
+            "label": "Work Laptop",
+            "group": "workstation",
+            "device_type": "laptop",
+            "role": "user-device"
+        },
+        {
+            "id": "192.168.1.26",
+            "label": "Printer",
+            "group": "infrastructure",
+            "device_type": "printer",
+            "role": "peripheral"
+        },
+        {
+            "id": "192.168.1.34",
+            "label": "iPhone",
+            "group": "mobile",
+            "device_type": "phone",
+            "role": "user-device"
+        },
+        {
+            "id": "192.168.1.40",
+            "label": "Tablet",
+            "group": "mobile",
+            "device_type": "tablet",
+            "role": "user-device"
+        },
+        {
+            "id": "192.168.1.52",
+            "label": "Living Room TV",
+            "group": "media",
+            "device_type": "tv",
+            "role": "streaming"
+        },
+        {
+            "id": "192.168.1.61",
+            "label": "Game Console",
+            "group": "media",
+            "device_type": "console",
+            "role": "gaming"
+        },
+        {
+            "id": "192.168.1.73",
+            "label": "Thermostat",
+            "group": "iot",
+            "device_type": "thermostat",
+            "role": "automation"
+        },
+        {
+            "id": "192.168.1.74",
+            "label": "Doorbell Camera",
+            "group": "iot",
+            "device_type": "camera",
+            "role": "security"
+        },
+        {
+            "id": "192.168.1.75",
+            "label": "Smart Speaker",
+            "group": "iot",
+            "device_type": "speaker",
+            "role": "voice-assistant"
+        }
+    ],
+    "links": [
+        {
+            "source": "192.168.1.1",
+            "target": "192.168.1.2"
+        },
+        {
+            "source": "192.168.1.1",
+            "target": "192.168.1.3"
+        },
+        {
+            "source": "192.168.1.2",
+            "target": "192.168.1.12"
+        },
+        {
+            "source": "192.168.1.2",
+            "target": "192.168.1.18"
+        },
+        {
+            "source": "192.168.1.2",
+            "target": "192.168.1.26"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.10"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.21"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.34"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.40"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.52"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.61"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.73"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.74"
+        },
+        {
+            "source": "192.168.1.3",
+            "target": "192.168.1.75"
+        }
+    ]
+}

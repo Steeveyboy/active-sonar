@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Active-Sonar Network Graph</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #07111f;
+            --panel: rgba(8, 20, 35, 0.88);
+            --grid: rgba(255, 255, 255, 0.08);
+            --text: #e8f0ff;
+            --muted: #9db2d1;
+            --scanner: #f9c74f;
+            --infrastructure: #4cc9f0;
+            --workstation: #90be6d;
+            --mobile: #f72585;
+            --media: #577590;
+            --iot: #f9844a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(76, 201, 240, 0.12), transparent 30%),
+                linear-gradient(180deg, #0a1629 0%, var(--bg) 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 320px) 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            padding: 24px;
+            background: var(--panel);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(14px);
+        }
+
+        .sidebar h1 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+        }
+
+        .sidebar p,
+        .meta,
+        .detail {
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .legend,
+        .stats,
+        .details {
+            margin-top: 24px;
+        }
+
+        .legend ul,
+        .stats ul,
+        .details dl {
+            list-style: none;
+            margin: 12px 0 0;
+            padding: 0;
+        }
+
+        .legend li,
+        .stats li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            color: var(--text);
+        }
+
+        .swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            display: inline-block;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+        }
+
+        .details dt {
+            margin-top: 12px;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .details dd {
+            margin: 4px 0 0;
+            color: var(--text);
+        }
+
+        .canvas {
+            position: relative;
+            min-height: 100vh;
+        }
+
+        svg {
+            width: 100%;
+            height: 100vh;
+            display: block;
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .link {
+            stroke: rgba(196, 207, 226, 0.35);
+            stroke-width: 1.8px;
+        }
+
+        .node {
+            stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 1.5px;
+            cursor: grab;
+        }
+
+        .node:active {
+            cursor: grabbing;
+        }
+
+        .label {
+            font-size: 12px;
+            fill: #dce7fb;
+            paint-order: stroke;
+            stroke: rgba(7, 17, 31, 0.95);
+            stroke-width: 3px;
+            stroke-linejoin: round;
+            pointer-events: none;
+        }
+
+        .banner {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(8, 20, 35, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            font-size: 0.9rem;
+            backdrop-filter: blur(8px);
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-right: 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            svg {
+                height: 70vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h1>Local Network Graph</h1>
+            <p>Force-directed view of a synthetic <code>192.168.1.0/24</code> subnet. Replace the JSON later with live scan output that uses the same <code>nodes</code> and <code>links</code> shape.</p>
+
+            <section class="stats">
+                <div class="meta">Topology summary</div>
+                <ul>
+                    <li><strong id="node-count">0</strong> nodes</li>
+                    <li><strong id="link-count">0</strong> links</li>
+                    <li><strong id="group-count">0</strong> device groups</li>
+                </ul>
+            </section>
+
+            <section class="legend">
+                <div class="meta">Groups</div>
+                <ul id="legend"></ul>
+            </section>
+
+            <section class="details">
+                <div class="meta">Selected device</div>
+                <dl id="details">
+                    <dt>Status</dt>
+                    <dd class="detail">Click a node to inspect it.</dd>
+                </dl>
+            </section>
+        </aside>
+
+        <main class="canvas">
+            <div class="banner" id="banner">Loading topology…</div>
+            <svg viewBox="0 0 1200 800" aria-label="Network graph visualization"></svg>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script id="fallback-data" type="application/json">
+        {
+            "nodes": [
+                {"id": "192.168.1.1", "label": "Gateway", "group": "infrastructure", "device_type": "router", "role": "edge-router"},
+                {"id": "192.168.1.2", "label": "Core Switch", "group": "infrastructure", "device_type": "switch", "role": "distribution"},
+                {"id": "192.168.1.3", "label": "Wi-Fi AP", "group": "infrastructure", "device_type": "access-point", "role": "wireless"},
+                {"id": "192.168.1.10", "label": "Scanner", "group": "scanner", "device_type": "workstation", "role": "observer"},
+                {"id": "192.168.1.12", "label": "NAS", "group": "infrastructure", "device_type": "nas", "role": "storage"},
+                {"id": "192.168.1.18", "label": "Office Desktop", "group": "workstation", "device_type": "desktop", "role": "user-device"},
+                {"id": "192.168.1.21", "label": "Work Laptop", "group": "workstation", "device_type": "laptop", "role": "user-device"},
+                {"id": "192.168.1.26", "label": "Printer", "group": "infrastructure", "device_type": "printer", "role": "peripheral"},
+                {"id": "192.168.1.34", "label": "iPhone", "group": "mobile", "device_type": "phone", "role": "user-device"},
+                {"id": "192.168.1.40", "label": "Tablet", "group": "mobile", "device_type": "tablet", "role": "user-device"},
+                {"id": "192.168.1.52", "label": "Living Room TV", "group": "media", "device_type": "tv", "role": "streaming"},
+                {"id": "192.168.1.61", "label": "Game Console", "group": "media", "device_type": "console", "role": "gaming"},
+                {"id": "192.168.1.73", "label": "Thermostat", "group": "iot", "device_type": "thermostat", "role": "automation"},
+                {"id": "192.168.1.74", "label": "Doorbell Camera", "group": "iot", "device_type": "camera", "role": "security"},
+                {"id": "192.168.1.75", "label": "Smart Speaker", "group": "iot", "device_type": "speaker", "role": "voice-assistant"}
+            ],
+            "links": [
+                {"source": "192.168.1.1", "target": "192.168.1.2"},
+                {"source": "192.168.1.1", "target": "192.168.1.3"},
+                {"source": "192.168.1.2", "target": "192.168.1.12"},
+                {"source": "192.168.1.2", "target": "192.168.1.18"},
+                {"source": "192.168.1.2", "target": "192.168.1.26"},
+                {"source": "192.168.1.3", "target": "192.168.1.10"},
+                {"source": "192.168.1.3", "target": "192.168.1.21"},
+                {"source": "192.168.1.3", "target": "192.168.1.34"},
+                {"source": "192.168.1.3", "target": "192.168.1.40"},
+                {"source": "192.168.1.3", "target": "192.168.1.52"},
+                {"source": "192.168.1.3", "target": "192.168.1.61"},
+                {"source": "192.168.1.3", "target": "192.168.1.73"},
+                {"source": "192.168.1.3", "target": "192.168.1.74"},
+                {"source": "192.168.1.3", "target": "192.168.1.75"}
+            ]
+        }
+    </script>
+    <script>
+        const palette = {
+            scanner: getComputedStyle(document.documentElement).getPropertyValue("--scanner").trim(),
+            infrastructure: getComputedStyle(document.documentElement).getPropertyValue("--infrastructure").trim(),
+            workstation: getComputedStyle(document.documentElement).getPropertyValue("--workstation").trim(),
+            mobile: getComputedStyle(document.documentElement).getPropertyValue("--mobile").trim(),
+            media: getComputedStyle(document.documentElement).getPropertyValue("--media").trim(),
+            iot: getComputedStyle(document.documentElement).getPropertyValue("--iot").trim()
+        };
+
+        const width = 1200;
+        const height = 800;
+        const svg = d3.select("svg");
+        const banner = document.getElementById("banner");
+        const details = document.getElementById("details");
+
+        async function loadTopology() {
+            for (const path of ["network_topology.json", "synthetic_network_topology.json"]) {
+                try {
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        banner.textContent = `Rendering ${path}`;
+                        return await response.json();
+                    }
+                } catch (error) {
+                    // Ignore and keep trying.
+                }
+            }
+
+            banner.textContent = "Rendering embedded synthetic fallback";
+            return JSON.parse(document.getElementById("fallback-data").textContent);
+        }
+
+        function renderLegend(groups) {
+            const legend = document.getElementById("legend");
+            legend.innerHTML = "";
+
+            groups.forEach((group) => {
+                const item = document.createElement("li");
+                const swatch = document.createElement("span");
+                swatch.className = "swatch";
+                swatch.style.background = palette[group] || "#94a3b8";
+                const label = document.createElement("span");
+                label.textContent = group;
+                item.appendChild(swatch);
+                item.appendChild(label);
+                legend.appendChild(item);
+            });
+        }
+
+        function updateDetails(node) {
+            details.innerHTML = "";
+            const entries = [
+                ["Label", node.label],
+                ["IP", node.id],
+                ["Group", node.group],
+                ["Type", node.device_type || "unknown"],
+                ["Role", node.role || "unknown"]
+            ];
+
+            entries.forEach(([term, description]) => {
+                const dt = document.createElement("dt");
+                dt.textContent = term;
+                const dd = document.createElement("dd");
+                dd.textContent = description;
+                details.appendChild(dt);
+                details.appendChild(dd);
+            });
+        }
+
+        function renderGraph(topology) {
+            const nodes = topology.nodes.map((node) => ({ ...node }));
+            const links = topology.links.map((link) => ({ ...link }));
+            const groups = [...new Set(nodes.map((node) => node.group))];
+
+            document.getElementById("node-count").textContent = nodes.length;
+            document.getElementById("link-count").textContent = links.length;
+            document.getElementById("group-count").textContent = groups.length;
+            renderLegend(groups);
+
+            svg.selectAll("*").remove();
+
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id((d) => d.id).distance(110).strength(0.9))
+                .force("charge", d3.forceManyBody().strength(-500))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(34));
+
+            const link = svg.append("g")
+                .attr("stroke-linecap", "round")
+                .selectAll("line")
+                .data(links)
+                .join("line")
+                .attr("class", "link");
+
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", (d) => d.group === "scanner" ? 16 : 12)
+                .attr("fill", (d) => palette[d.group] || "#94a3b8")
+                .on("click", (_, d) => updateDetails(d))
+                .call(d3.drag()
+                    .on("start", (event, d) => {
+                        if (!event.active) {
+                            simulation.alphaTarget(0.2).restart();
+                        }
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    })
+                    .on("drag", (event, d) => {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                    })
+                    .on("end", (event, d) => {
+                        if (!event.active) {
+                            simulation.alphaTarget(0);
+                        }
+                        d.fx = null;
+                        d.fy = null;
+                    }));
+
+            const label = svg.append("g")
+                .selectAll("text")
+                .data(nodes)
+                .join("text")
+                .attr("class", "label")
+                .attr("text-anchor", "middle")
+                .attr("dy", -18)
+                .text((d) => d.label);
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", (d) => d.source.x)
+                    .attr("y1", (d) => d.source.y)
+                    .attr("x2", (d) => d.target.x)
+                    .attr("y2", (d) => d.target.y);
+
+                node
+                    .attr("cx", (d) => d.x)
+                    .attr("cy", (d) => d.y);
+
+                label
+                    .attr("x", (d) => d.x)
+                    .attr("y", (d) => d.y);
+            });
+        }
+
+        loadTopology().then(renderGraph);
+    </script>
+</body>
+</html>
