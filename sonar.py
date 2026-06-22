@@ -1,13 +1,29 @@
-from scapy.all import ARP, Ether, srp1
+from scapy.all import ARP, Ether, IP, ICMP, srp1, sr1
 from ipaddress import ip_network
 from tqdm import tqdm
 import json
 import socket
 import argparse
 
+DEFAULT_TIMEOUT = 1
+OUTPUT_FILE = "network_topology.json"
+
+
 def get_args():
-    parser = argparse.ArgumentParser(description="Simple network scanner using ARP requests.")
-    parser.add_argument("-s", "--subnet", required=False, help="Target subnet to scan (e.g., 192.168.1.0/24)")
+    parser = argparse.ArgumentParser(description="Simple network scanner using ARP or ICMP sweeps.")
+    parser.add_argument("-s", "--subnet", required=False, help="Target subnet to scan (e.g., 192.168.0.0/24)")
+    parser.add_argument(
+        "-m", "--method",
+        choices=["arp", "icmp"],
+        default="arp",
+        help="Discovery method: 'arp' (Layer 2, local subnet only) or 'icmp' (Layer 3 ping). Default: arp",
+    )
+    parser.add_argument(
+        "-t", "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help=f"Per-host probe timeout in seconds. Default: {DEFAULT_TIMEOUT}",
+    )
     return parser.parse_args()
 
 
@@ -25,46 +41,77 @@ def get_local_ip():
 
 
 def get_local_subnet():
-    """Derive the /24 subnet of the machine running the script (e.g. '172.28.15.0/24')."""
+    """Derive the /24 subnet of the machine running the script (e.g. '192.168.0.0/24')."""
     ip = get_local_ip()
     return str(ip_network(f"{ip}/24", strict=False))
 
 
-def scan_subnet(ip_range):
+def arp_probe(ip, timeout):
+    """Send an ARP request to a single host. Returns a (ip, mac) dict if it replies, else None."""
+    packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
+    received = srp1(packet, timeout=timeout, verbose=0)
+    if received:
+        return {"ip": received.psrc, "mac": received.hwsrc}
+    return None
+
+
+def icmp_probe(ip, timeout):
+    """Send an ICMP echo request to a single host. Returns a {ip} dict if it replies, else None.
+
+    ICMP works at Layer 3, so it can reach hosts beyond the local segment but does
+    not learn the MAC address the way an ARP probe does.
+    """
+    packet = IP(dst=ip) / ICMP()
+    received = sr1(packet, timeout=timeout, verbose=0)
+
+    if received:
+        return {"ip": received.src, "mac": None}
+    return None
+
+
+PROBES = {
+    "arp": arp_probe,
+    "icmp": icmp_probe,
+}
+
+
+def scan_subnet(ip_range, method="arp", timeout=DEFAULT_TIMEOUT):
+    probe = PROBES[method]
     hosts = list(ip_network(ip_range, strict=False).hosts())
     scanner_ip = get_local_ip()
 
     nodes = [{"id": scanner_ip, "label": "Scanner", "group": "scanner"}]
     links = []
 
-    with tqdm(hosts, desc=f"Scanning {ip_range}", unit="host") as progress:
+    desc = f"Scanning {ip_range} ({method.upper()})"
+    with tqdm(hosts, desc=desc, unit="host") as progress:
         for host in progress:
-            ip = str(host)
-            packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
-            received = srp1(packet, timeout=1, verbose=0)
+            result = probe(str(host), timeout)
+            if not result:
+                continue
 
-            if received:
-                tqdm.write(f"  Found — IP: {received.psrc}  MAC: {received.hwsrc}")
-                nodes.append({"id": received.psrc, "label": received.psrc, "group": "target"})
-                links.append({"source": scanner_ip, "target": received.psrc})
-        
-    # Output the results in JSON format
-    output = {
-        "nodes": nodes,
-        "links": links
-    }
-    
-    with open("network_topology.json", "w") as f:
+            found_ip = result["ip"]
+            mac = result["mac"]
+            tqdm.write(f"  Found — IP: {found_ip}" + (f"  MAC: {mac}" if mac else ""))
+
+            node = {"id": found_ip, "label": found_ip, "group": "target"}
+            if mac:
+                node["mac"] = mac
+            nodes.append(node)
+            links.append({"source": scanner_ip, "target": found_ip})
+
+    output = {"nodes": nodes, "links": links}
+    with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, indent=4)
-        
+
+
 if __name__ == "__main__":
     args = get_args()
-    
+
     if args.subnet:
         target_subnet = args.subnet
     else:
         target_subnet = get_local_subnet()
         print(f"Using Default Subnet IP Range: {target_subnet}")
-    
-    
-    scan_subnet(target_subnet)
+
+    scan_subnet(target_subnet, method=args.method, timeout=args.timeout)
