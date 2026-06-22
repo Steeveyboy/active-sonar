@@ -1,5 +1,5 @@
 from scapy.all import ARP, Ether, IP, ICMP, srp1, sr1
-from ipaddress import ip_network
+from ipaddress import ip_network, ip_address
 from tqdm import tqdm
 import json
 import socket
@@ -11,7 +11,11 @@ OUTPUT_FILE = "network_topology.json"
 
 def get_args():
     parser = argparse.ArgumentParser(description="Simple network scanner using ARP or ICMP sweeps.")
-    parser.add_argument("-s", "--subnet", required=False, help="Target subnet to scan (e.g., 192.168.0.0/24)")
+    parser.add_argument(
+        "-s", "--subnet",
+        required=False,
+        help="Target to scan: CIDR subnet (e.g. 192.168.0.0/24) or hyphenated range (e.g. 192.168.0.100-112)",
+    )
     parser.add_argument(
         "-m", "--method",
         choices=["arp", "icmp"],
@@ -46,6 +50,24 @@ def get_local_subnet():
     return str(ip_network(f"{ip}/24", strict=False))
 
 
+def parse_targets(target):
+    """Expand a target string into a list of host IP strings.
+
+    Supports CIDR notation (e.g. '192.168.0.0/24') and last-octet hyphenated
+    ranges (e.g. '192.168.0.100-112', meaning .100 through .112 inclusive).
+    """
+    if "-" in target:
+        base, end = target.rsplit("-", 1)
+        prefix = base.rsplit(".", 1)[0]
+        start = int(ip_address(base))
+        stop = int(ip_address(f"{prefix}.{end}"))
+        if stop < start:
+            raise ValueError(f"Range end {end} is before start {base}")
+        return [str(ip_address(addr)) for addr in range(start, stop + 1)]
+
+    return [str(host) for host in ip_network(target, strict=False).hosts()]
+
+
 def arp_probe(ip, timeout):
     """Send an ARP request to a single host. Returns a (ip, mac) dict if it replies, else None."""
     packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
@@ -77,7 +99,7 @@ PROBES = {
 
 def scan_subnet(ip_range, method="arp", timeout=DEFAULT_TIMEOUT):
     probe = PROBES[method]
-    hosts = list(ip_network(ip_range, strict=False).hosts())
+    hosts = parse_targets(ip_range)
     scanner_ip = get_local_ip()
 
     nodes = [{"id": scanner_ip, "label": "Scanner", "group": "scanner"}]
